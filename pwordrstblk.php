@@ -3,7 +3,7 @@
  * Plugin Name: Bulk Password Reset
  * Description: Allows admins to bulk-send password reset emails to selected users by role.
  * Version: 1.0.0
- * Author: Darren Kandekore
+ * Author: Your Name
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -37,14 +37,20 @@ function bpr_render_admin_page() {
     <div class="wrap">
         <h1><?php _e( 'Bulk Password Reset', 'bulk-password-reset' ); ?></h1>
         <p><?php _e( 'Select a user role to filter, then choose one or more users to send them a password reset link.', 'bulk-password-reset' ); ?></p>
+
         <form method="POST" action="">
             <?php wp_nonce_field( 'bpr_filter_users', 'bpr_filter_users_nonce' ); ?>
             <select name="bpr_selected_role" style="min-width: 200px;">
-                <option value="subscriber"><?php _e( 'Subscriber', 'bulk-password-reset' ); ?></option>
-                <option value="contributor"><?php _e( 'Contributor', 'bulk-password-reset' ); ?></option>
-                <option value="author"><?php _e( 'Author', 'bulk-password-reset' ); ?></option>
-                <option value="editor"><?php _e( 'Editor', 'bulk-password-reset' ); ?></option>
-                <option value="administrator"><?php _e( 'Administrator', 'bulk-password-reset' ); ?></option>
+                <?php
+                global $wp_roles;
+                if ( ! isset( $wp_roles ) ) {
+                    $wp_roles = new WP_Roles();
+                }
+                $all_roles = $wp_roles->roles;
+                foreach ( $all_roles as $role_key => $role_data ) {
+                    echo '<option value="' . esc_attr( $role_key ) . '">' . esc_html( $role_data['name'] ) . '</option>';
+                }
+                ?>
             </select>
             <input type="submit" name="bpr_filter_submit" class="button button-primary" value="<?php _e( 'Filter Users', 'bulk-password-reset' ); ?>">
         </form>
@@ -58,6 +64,7 @@ function bpr_render_admin_page() {
                 'number'  => 200,
             );
             $users = get_users( $args );
+
             if ( ! empty( $users ) ) {
                 ?>
                 <form method="POST" action="">
@@ -77,7 +84,7 @@ function bpr_render_admin_page() {
                         <?php
                         foreach ( $users as $user ) {
                             $last_sent    = get_user_meta( $user->ID, 'bpr_last_reset_email_sent', true );
-                            $display_date = $last_sent 
+                            $display_date = $last_sent
                                 ? date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $last_sent )
                                 : __( 'Not sent yet', 'bulk-password-reset' );
                             ?>
@@ -138,9 +145,11 @@ function bpr_handle_send_reset_links() {
         if ( ! current_user_can( 'manage_options' ) ) {
             wp_die( __( 'You do not have permission to do this.', 'bulk-password-reset' ) );
         }
+
         $user_ids       = isset( $_POST['bpr_user_ids'] ) ? (array) $_POST['bpr_user_ids'] : array();
         $email_subject  = sanitize_text_field( $_POST['bpr_email_subject'] );
         $email_body_raw = isset( $_POST['bpr_email_body'] ) ? wp_kses_post( stripslashes( $_POST['bpr_email_body'] ) ) : '';
+
         foreach ( $user_ids as $user_id ) {
             $user = get_user_by( 'ID', $user_id );
             if ( $user ) {
@@ -158,11 +167,7 @@ function bpr_handle_send_reset_links() {
                     array_values( $placeholders ),
                     $email_body_raw
                 );
-                wp_mail(
-                    $user->user_email,
-                    $email_subject,
-                    $final_email_body
-                );
+                wp_mail( $user->user_email, $email_subject, $final_email_body );
                 update_user_meta( $user->ID, 'bpr_last_reset_email_sent', current_time( 'timestamp' ) );
             }
         }
