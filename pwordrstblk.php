@@ -3,7 +3,7 @@
  * Plugin Name: Bulk Password Reset
  * Description: Allows admins to bulk-send password reset emails to selected users by role.
  * Version: 1.0.0
- * Author: Your Name
+ * Author: D Kandekore
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
